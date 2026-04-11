@@ -11,3 +11,4 @@ variable "firewall_ingress_rules" {
     applicable_tags       = list(string)
   }))
 }
+ 
