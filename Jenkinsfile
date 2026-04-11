@@ -21,16 +21,17 @@ pipeline {
                     steps {
                         sh """
                             mkdir -p /tmp/tf-dev && cp -r . /tmp/tf-dev/
-                            cd /tmp/tf-dev && terraform init \\
+                            cd /tmp/tf-dev && terraform init -input=false \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=dev/terraform.tfstate" \\
                               -reconfigure
-                            cd /tmp/tf-dev && terraform plan \\
+                            cd /tmp/tf-dev && terraform plan -input=false \\
                               -var-file="environments/dev/common.tfvars" \\
                               -var-file="environments/dev/vpc.tfvars" \\
                               -var-file="environments/dev/firewall.tfvars" \\
                               -var-file="environments/dev/vm.tfvars" \\
-                              -var-file="environments/dev/iam.tfvars"
+                              -var-file="environments/dev/iam.tfvars" \\
+                              -out=tfplan-dev
                         """
                     }
                 }
@@ -38,16 +39,17 @@ pipeline {
                     steps {
                         sh """
                             mkdir -p /tmp/tf-test && cp -r . /tmp/tf-test/
-                            cd /tmp/tf-test && terraform init \\
+                            cd /tmp/tf-test && terraform init -input=false \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=test/terraform.tfstate" \\
                               -reconfigure
-                            cd /tmp/tf-test && terraform plan \\
+                            cd /tmp/tf-test && terraform plan -input=false \\
                               -var-file="environments/test/common.tfvars" \\
                               -var-file="environments/test/vpc.tfvars" \\
                               -var-file="environments/test/firewall.tfvars" \\
                               -var-file="environments/test/vm.tfvars" \\
-                              -var-file="environments/test/iam.tfvars"
+                              -var-file="environments/test/iam.tfvars" \\
+                              -out=tfplan-test
                         """
                     }
                 }
@@ -55,16 +57,17 @@ pipeline {
                     steps {
                         sh """
                             mkdir -p /tmp/tf-prod && cp -r . /tmp/tf-prod/
-                            cd /tmp/tf-prod && terraform init \\
+                            cd /tmp/tf-prod && terraform init -input=false \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=prod/terraform.tfstate" \\
                               -reconfigure
-                            cd /tmp/tf-prod && terraform plan \\
+                            cd /tmp/tf-prod && terraform plan -input=false \\
                               -var-file="environments/prod/common.tfvars" \\
                               -var-file="environments/prod/vpc.tfvars" \\
                               -var-file="environments/prod/firewall.tfvars" \\
                               -var-file="environments/prod/vm.tfvars" \\
-                              -var-file="environments/prod/iam.tfvars"
+                              -var-file="environments/prod/iam.tfvars" \\
+                              -out=tfplan-prod
                         """
                     }
                 }
@@ -81,7 +84,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-dev
-                                    terraform apply -auto-approve -target=module.vpc \\
+                                    terraform apply -auto-approve -input=false -target=module.vpc \\
                                       -var-file="environments/dev/common.tfvars" \\
                                       -var-file="environments/dev/vpc.tfvars" \\
                                       -var-file="environments/dev/firewall.tfvars" \\
@@ -94,7 +97,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-dev
-                                    terraform apply -auto-approve -target=module.iam \\
+                                    terraform apply -auto-approve -input=false -target=module.iam \\
                                       -var-file="environments/dev/common.tfvars" \\
                                       -var-file="environments/dev/vpc.tfvars" \\
                                       -var-file="environments/dev/firewall.tfvars" \\
@@ -107,7 +110,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-dev
-                                    terraform apply -auto-approve -target=module.firewall \\
+                                    terraform apply -auto-approve -input=false -target=module.firewall \\
                                       -var-file="environments/dev/common.tfvars" \\
                                       -var-file="environments/dev/vpc.tfvars" \\
                                       -var-file="environments/dev/firewall.tfvars" \\
@@ -120,7 +123,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-dev
-                                    terraform apply -auto-approve -target=module.vm \\
+                                    terraform apply -auto-approve -input=false -target=module.vm \\
                                       -var-file="environments/dev/common.tfvars" \\
                                       -var-file="environments/dev/vpc.tfvars" \\
                                       -var-file="environments/dev/firewall.tfvars" \\
@@ -137,7 +140,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-test
-                                    terraform apply -auto-approve -target=module.vpc \\
+                                    terraform apply -auto-approve -input=false -target=module.vpc \\
                                       -var-file="environments/test/common.tfvars" \\
                                       -var-file="environments/test/vpc.tfvars" \\
                                       -var-file="environments/test/firewall.tfvars" \\
@@ -150,7 +153,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-test
-                                    terraform apply -auto-approve -target=module.iam \\
+                                    terraform apply -auto-approve -input=false -target=module.iam \\
                                       -var-file="environments/test/common.tfvars" \\
                                       -var-file="environments/test/vpc.tfvars" \\
                                       -var-file="environments/test/firewall.tfvars" \\
@@ -163,7 +166,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-test
-                                    terraform apply -auto-approve -target=module.firewall \\
+                                    terraform apply -auto-approve -input=false -target=module.firewall \\
                                       -var-file="environments/test/common.tfvars" \\
                                       -var-file="environments/test/vpc.tfvars" \\
                                       -var-file="environments/test/firewall.tfvars" \\
@@ -176,7 +179,7 @@ pipeline {
                             steps {
                                 sh """
                                     cd /tmp/tf-test
-                                    terraform apply -auto-approve -target=module.vm \\
+                                    terraform apply -auto-approve -input=false -target=module.vm \\
                                       -var-file="environments/test/common.tfvars" \\
                                       -var-file="environments/test/vpc.tfvars" \\
                                       -var-file="environments/test/firewall.tfvars" \\
@@ -211,7 +214,7 @@ pipeline {
             steps {
                 sh """
                     cd /tmp/tf-prod
-                    terraform apply -auto-approve -target=module.vpc \\
+                    terraform apply -auto-approve -input=false -target=module.vpc \\
                       -var-file="environments/prod/common.tfvars" \\
                       -var-file="environments/prod/vpc.tfvars" \\
                       -var-file="environments/prod/firewall.tfvars" \\
@@ -226,7 +229,7 @@ pipeline {
             steps {
                 sh """
                     cd /tmp/tf-prod
-                    terraform apply -auto-approve -target=module.iam \\
+                    terraform apply -auto-approve -input=false -target=module.iam \\
                       -var-file="environments/prod/common.tfvars" \\
                       -var-file="environments/prod/vpc.tfvars" \\
                       -var-file="environments/prod/firewall.tfvars" \\
@@ -241,7 +244,7 @@ pipeline {
             steps {
                 sh """
                     cd /tmp/tf-prod
-                    terraform apply -auto-approve -target=module.firewall \\
+                    terraform apply -auto-approve -input=false -target=module.firewall \\
                       -var-file="environments/prod/common.tfvars" \\
                       -var-file="environments/prod/vpc.tfvars" \\
                       -var-file="environments/prod/firewall.tfvars" \\
@@ -256,7 +259,7 @@ pipeline {
             steps {
                 sh """
                     cd /tmp/tf-prod
-                    terraform apply -auto-approve -target=module.vm \\
+                    terraform apply -auto-approve -input=false -target=module.vm \\
                       -var-file="environments/prod/common.tfvars" \\
                       -var-file="environments/prod/vpc.tfvars" \\
                       -var-file="environments/prod/firewall.tfvars" \\
