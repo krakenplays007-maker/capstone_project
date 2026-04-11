@@ -2,6 +2,10 @@ resource "google_compute_network" "vpc" {
   for_each                = { for v in var.vpcs : v.network_name => v }
   name                    = each.value.network_name
   auto_create_subnetworks = false
+
+  lifecycle {
+    ignore_changes = [name]
+  }
 }
 
 resource "google_compute_subnetwork" "subnet" {
@@ -12,6 +16,6 @@ resource "google_compute_subnetwork" "subnet" {
   network       = google_compute_network.vpc[each.value.network_name].id
 
   lifecycle {
-    prevent_destroy = true
+    ignore_changes = [name, ip_cidr_range]
   }
 }
