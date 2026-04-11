@@ -41,178 +41,178 @@ pipeline {
             }
         }
 
-        // ── Plan all 3 environments ──────────────────────────────────────────
+        // ── Plan all 3 environments in parallel ──────────────────────────────
 
-        stage('Plan: dev') {
-            steps {
-                sh """
-                    terraform init \\
-                      -backend-config="bucket=backend_state" \\
-                      -backend-config="prefix=dev/terraform.tfstate" \\
-                      -reconfigure
-                    terraform plan \\
-                      -var-file="environments/dev/common.tfvars" \\
-                      -var-file="environments/dev/vpc.tfvars" \\
-                      -var-file="environments/dev/firewall.tfvars" \\
-                      -var-file="environments/dev/vm.tfvars" \\
-                      -var-file="environments/dev/iam.tfvars"
-                """
+        stage('Plan: all environments') {
+            parallel {
+                stage('Plan: dev') {
+                    steps {
+                        sh """
+                            terraform init \\
+                              -backend-config="bucket=backend_state" \\
+                              -backend-config="prefix=dev/terraform.tfstate" \\
+                              -reconfigure
+                            terraform plan \\
+                              -var-file="environments/dev/common.tfvars" \\
+                              -var-file="environments/dev/vpc.tfvars" \\
+                              -var-file="environments/dev/firewall.tfvars" \\
+                              -var-file="environments/dev/vm.tfvars" \\
+                              -var-file="environments/dev/iam.tfvars"
+                        """
+                    }
+                }
+                stage('Plan: test') {
+                    steps {
+                        sh """
+                            terraform init \\
+                              -backend-config="bucket=backend_state" \\
+                              -backend-config="prefix=test/terraform.tfstate" \\
+                              -reconfigure
+                            terraform plan \\
+                              -var-file="environments/test/common.tfvars" \\
+                              -var-file="environments/test/vpc.tfvars" \\
+                              -var-file="environments/test/firewall.tfvars" \\
+                              -var-file="environments/test/vm.tfvars" \\
+                              -var-file="environments/test/iam.tfvars"
+                        """
+                    }
+                }
+                stage('Plan: prod') {
+                    steps {
+                        sh """
+                            terraform init \\
+                              -backend-config="bucket=backend_state" \\
+                              -backend-config="prefix=prod/terraform.tfstate" \\
+                              -reconfigure
+                            terraform plan \\
+                              -var-file="environments/prod/common.tfvars" \\
+                              -var-file="environments/prod/vpc.tfvars" \\
+                              -var-file="environments/prod/firewall.tfvars" \\
+                              -var-file="environments/prod/vm.tfvars" \\
+                              -var-file="environments/prod/iam.tfvars"
+                        """
+                    }
+                }
             }
         }
 
-        stage('Plan: test') {
-            steps {
-                sh """
-                    terraform init \\
-                      -backend-config="bucket=backend_state" \\
-                      -backend-config="prefix=test/terraform.tfstate" \\
-                      -reconfigure
-                    terraform plan \\
-                      -var-file="environments/test/common.tfvars" \\
-                      -var-file="environments/test/vpc.tfvars" \\
-                      -var-file="environments/test/firewall.tfvars" \\
-                      -var-file="environments/test/vm.tfvars" \\
-                      -var-file="environments/test/iam.tfvars"
-                """
+        // ── Apply dev + test in parallel (auto) ──────────────────────────────
+
+        stage('Apply: dev + test') {
+            when { expression { env.ENVIRONMENT in ['dev', 'test'] } }
+            parallel {
+                stage('Apply dev: vpc → iam → firewall → vm') {
+                    when { expression { env.ENVIRONMENT == 'dev' } }
+                    stages {
+                        stage('Apply dev: vpc') {
+                            steps {
+                                sh """
+                                    terraform init -backend-config="bucket=backend_state" -backend-config="prefix=dev/terraform.tfstate" -reconfigure
+                                    terraform apply -auto-approve -target=module.vpc \\
+                                      -var-file="environments/dev/common.tfvars" \\
+                                      -var-file="environments/dev/vpc.tfvars" \\
+                                      -var-file="environments/dev/firewall.tfvars" \\
+                                      -var-file="environments/dev/vm.tfvars" \\
+                                      -var-file="environments/dev/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply dev: iam') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.iam \\
+                                      -var-file="environments/dev/common.tfvars" \\
+                                      -var-file="environments/dev/vpc.tfvars" \\
+                                      -var-file="environments/dev/firewall.tfvars" \\
+                                      -var-file="environments/dev/vm.tfvars" \\
+                                      -var-file="environments/dev/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply dev: firewall') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.firewall \\
+                                      -var-file="environments/dev/common.tfvars" \\
+                                      -var-file="environments/dev/vpc.tfvars" \\
+                                      -var-file="environments/dev/firewall.tfvars" \\
+                                      -var-file="environments/dev/vm.tfvars" \\
+                                      -var-file="environments/dev/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply dev: vm') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.vm \\
+                                      -var-file="environments/dev/common.tfvars" \\
+                                      -var-file="environments/dev/vpc.tfvars" \\
+                                      -var-file="environments/dev/firewall.tfvars" \\
+                                      -var-file="environments/dev/vm.tfvars" \\
+                                      -var-file="environments/dev/iam.tfvars"
+                                """
+                            }
+                        }
+                    }
+                }
+                stage('Apply test: vpc → iam → firewall → vm') {
+                    when { expression { env.ENVIRONMENT == 'test' } }
+                    stages {
+                        stage('Apply test: vpc') {
+                            steps {
+                                sh """
+                                    terraform init -backend-config="bucket=backend_state" -backend-config="prefix=test/terraform.tfstate" -reconfigure
+                                    terraform apply -auto-approve -target=module.vpc \\
+                                      -var-file="environments/test/common.tfvars" \\
+                                      -var-file="environments/test/vpc.tfvars" \\
+                                      -var-file="environments/test/firewall.tfvars" \\
+                                      -var-file="environments/test/vm.tfvars" \\
+                                      -var-file="environments/test/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply test: iam') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.iam \\
+                                      -var-file="environments/test/common.tfvars" \\
+                                      -var-file="environments/test/vpc.tfvars" \\
+                                      -var-file="environments/test/firewall.tfvars" \\
+                                      -var-file="environments/test/vm.tfvars" \\
+                                      -var-file="environments/test/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply test: firewall') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.firewall \\
+                                      -var-file="environments/test/common.tfvars" \\
+                                      -var-file="environments/test/vpc.tfvars" \\
+                                      -var-file="environments/test/firewall.tfvars" \\
+                                      -var-file="environments/test/vm.tfvars" \\
+                                      -var-file="environments/test/iam.tfvars"
+                                """
+                            }
+                        }
+                        stage('Apply test: vm') {
+                            steps {
+                                sh """
+                                    terraform apply -auto-approve -target=module.vm \\
+                                      -var-file="environments/test/common.tfvars" \\
+                                      -var-file="environments/test/vpc.tfvars" \\
+                                      -var-file="environments/test/firewall.tfvars" \\
+                                      -var-file="environments/test/vm.tfvars" \\
+                                      -var-file="environments/test/iam.tfvars"
+                                """
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        stage('Plan: prod') {
-            steps {
-                sh """
-                    terraform init \\
-                      -backend-config="bucket=backend_state" \\
-                      -backend-config="prefix=prod/terraform.tfstate" \\
-                      -reconfigure
-                    terraform plan \\
-                      -var-file="environments/prod/common.tfvars" \\
-                      -var-file="environments/prod/vpc.tfvars" \\
-                      -var-file="environments/prod/firewall.tfvars" \\
-                      -var-file="environments/prod/vm.tfvars" \\
-                      -var-file="environments/prod/iam.tfvars"
-                """
-            }
-        }
-
-        // ── Apply dev (auto) ─────────────────────────────────────────────────
-
-        stage('Apply dev: vpc') {
-            when { expression { env.ENVIRONMENT == 'dev' } }
-            steps {
-                sh """
-                    terraform init -backend-config="bucket=backend_state" -backend-config="prefix=dev/terraform.tfstate" -reconfigure
-                    terraform apply -auto-approve -target=module.vpc \\
-                      -var-file="environments/dev/common.tfvars" \\
-                      -var-file="environments/dev/vpc.tfvars" \\
-                      -var-file="environments/dev/firewall.tfvars" \\
-                      -var-file="environments/dev/vm.tfvars" \\
-                      -var-file="environments/dev/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply dev: iam') {
-            when { expression { env.ENVIRONMENT == 'dev' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.iam \\
-                      -var-file="environments/dev/common.tfvars" \\
-                      -var-file="environments/dev/vpc.tfvars" \\
-                      -var-file="environments/dev/firewall.tfvars" \\
-                      -var-file="environments/dev/vm.tfvars" \\
-                      -var-file="environments/dev/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply dev: firewall') {
-            when { expression { env.ENVIRONMENT == 'dev' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.firewall \\
-                      -var-file="environments/dev/common.tfvars" \\
-                      -var-file="environments/dev/vpc.tfvars" \\
-                      -var-file="environments/dev/firewall.tfvars" \\
-                      -var-file="environments/dev/vm.tfvars" \\
-                      -var-file="environments/dev/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply dev: vm') {
-            when { expression { env.ENVIRONMENT == 'dev' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.vm \\
-                      -var-file="environments/dev/common.tfvars" \\
-                      -var-file="environments/dev/vpc.tfvars" \\
-                      -var-file="environments/dev/firewall.tfvars" \\
-                      -var-file="environments/dev/vm.tfvars" \\
-                      -var-file="environments/dev/iam.tfvars"
-                """
-            }
-        }
-
-        // ── Apply test (auto) ────────────────────────────────────────────────
-
-        stage('Apply test: vpc') {
-            when { expression { env.ENVIRONMENT == 'test' } }
-            steps {
-                sh """
-                    terraform init -backend-config="bucket=backend_state" -backend-config="prefix=test/terraform.tfstate" -reconfigure
-                    terraform apply -auto-approve -target=module.vpc \\
-                      -var-file="environments/test/common.tfvars" \\
-                      -var-file="environments/test/vpc.tfvars" \\
-                      -var-file="environments/test/firewall.tfvars" \\
-                      -var-file="environments/test/vm.tfvars" \\
-                      -var-file="environments/test/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply test: iam') {
-            when { expression { env.ENVIRONMENT == 'test' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.iam \\
-                      -var-file="environments/test/common.tfvars" \\
-                      -var-file="environments/test/vpc.tfvars" \\
-                      -var-file="environments/test/firewall.tfvars" \\
-                      -var-file="environments/test/vm.tfvars" \\
-                      -var-file="environments/test/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply test: firewall') {
-            when { expression { env.ENVIRONMENT == 'test' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.firewall \\
-                      -var-file="environments/test/common.tfvars" \\
-                      -var-file="environments/test/vpc.tfvars" \\
-                      -var-file="environments/test/firewall.tfvars" \\
-                      -var-file="environments/test/vm.tfvars" \\
-                      -var-file="environments/test/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply test: vm') {
-            when { expression { env.ENVIRONMENT == 'test' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.vm \\
-                      -var-file="environments/test/common.tfvars" \\
-                      -var-file="environments/test/vpc.tfvars" \\
-                      -var-file="environments/test/firewall.tfvars" \\
-                      -var-file="environments/test/vm.tfvars" \\
-                      -var-file="environments/test/iam.tfvars"
-                """
-            }
-        }
-
-        // ── Apply prod (manual approval) ─────────────────────────────────────
+        // ── Prod: approval then apply ─────────────────────────────────────────
 
         stage('Approval: prod') {
             when { expression { env.ENVIRONMENT == 'prod' } }
@@ -223,66 +223,64 @@ pipeline {
                         env.PROD_APPROVED = 'true'
                     } catch (err) {
                         env.PROD_APPROVED = 'false'
-                        echo "🚫 Prod deployment aborted by user — skipping apply"
+                        echo "🚫 Prod deployment aborted — skipping apply"
                     }
                 }
             }
         }
 
-        stage('Apply prod: vpc') {
+        stage('Apply: prod') {
             when { expression { env.ENVIRONMENT == 'prod' && env.PROD_APPROVED == 'true' } }
-            steps {
-                sh """
-                    terraform init -backend-config="bucket=backend_state" -backend-config="prefix=prod/terraform.tfstate" -reconfigure
-                    terraform apply -auto-approve -target=module.vpc \\
-                      -var-file="environments/prod/common.tfvars" \\
-                      -var-file="environments/prod/vpc.tfvars" \\
-                      -var-file="environments/prod/firewall.tfvars" \\
-                      -var-file="environments/prod/vm.tfvars" \\
-                      -var-file="environments/prod/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply prod: iam') {
-            when { expression { env.ENVIRONMENT == 'prod' && env.PROD_APPROVED == 'true' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.iam \\
-                      -var-file="environments/prod/common.tfvars" \\
-                      -var-file="environments/prod/vpc.tfvars" \\
-                      -var-file="environments/prod/firewall.tfvars" \\
-                      -var-file="environments/prod/vm.tfvars" \\
-                      -var-file="environments/prod/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply prod: firewall') {
-            when { expression { env.ENVIRONMENT == 'prod' && env.PROD_APPROVED == 'true' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.firewall \\
-                      -var-file="environments/prod/common.tfvars" \\
-                      -var-file="environments/prod/vpc.tfvars" \\
-                      -var-file="environments/prod/firewall.tfvars" \\
-                      -var-file="environments/prod/vm.tfvars" \\
-                      -var-file="environments/prod/iam.tfvars"
-                """
-            }
-        }
-
-        stage('Apply prod: vm') {
-            when { expression { env.ENVIRONMENT == 'prod' && env.PROD_APPROVED == 'true' } }
-            steps {
-                sh """
-                    terraform apply -auto-approve -target=module.vm \\
-                      -var-file="environments/prod/common.tfvars" \\
-                      -var-file="environments/prod/vpc.tfvars" \\
-                      -var-file="environments/prod/firewall.tfvars" \\
-                      -var-file="environments/prod/vm.tfvars" \\
-                      -var-file="environments/prod/iam.tfvars"
-                """
+            stages {
+                stage('Apply prod: vpc') {
+                    steps {
+                        sh """
+                            terraform init -backend-config="bucket=backend_state" -backend-config="prefix=prod/terraform.tfstate" -reconfigure
+                            terraform apply -auto-approve -target=module.vpc \\
+                              -var-file="environments/prod/common.tfvars" \\
+                              -var-file="environments/prod/vpc.tfvars" \\
+                              -var-file="environments/prod/firewall.tfvars" \\
+                              -var-file="environments/prod/vm.tfvars" \\
+                              -var-file="environments/prod/iam.tfvars"
+                        """
+                    }
+                }
+                stage('Apply prod: iam') {
+                    steps {
+                        sh """
+                            terraform apply -auto-approve -target=module.iam \\
+                              -var-file="environments/prod/common.tfvars" \\
+                              -var-file="environments/prod/vpc.tfvars" \\
+                              -var-file="environments/prod/firewall.tfvars" \\
+                              -var-file="environments/prod/vm.tfvars" \\
+                              -var-file="environments/prod/iam.tfvars"
+                        """
+                    }
+                }
+                stage('Apply prod: firewall') {
+                    steps {
+                        sh """
+                            terraform apply -auto-approve -target=module.firewall \\
+                              -var-file="environments/prod/common.tfvars" \\
+                              -var-file="environments/prod/vpc.tfvars" \\
+                              -var-file="environments/prod/firewall.tfvars" \\
+                              -var-file="environments/prod/vm.tfvars" \\
+                              -var-file="environments/prod/iam.tfvars"
+                        """
+                    }
+                }
+                stage('Apply prod: vm') {
+                    steps {
+                        sh """
+                            terraform apply -auto-approve -target=module.vm \\
+                              -var-file="environments/prod/common.tfvars" \\
+                              -var-file="environments/prod/vpc.tfvars" \\
+                              -var-file="environments/prod/firewall.tfvars" \\
+                              -var-file="environments/prod/vm.tfvars" \\
+                              -var-file="environments/prod/iam.tfvars"
+                        """
+                    }
+                }
             }
         }
     }
