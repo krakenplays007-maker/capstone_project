@@ -29,6 +29,8 @@ pipeline {
             }
         }
 
+        // ── Plan all 3 environments in parallel ──────────────────────────────
+
         stage('Plan: all environments') {
             parallel {
                 stage('Plan: dev') {
@@ -100,138 +102,30 @@ pipeline {
             }
         }
 
+        // ── Apply dev + test in parallel using saved plan ─────────────────────
+
         stage('Apply: dev + test') {
             parallel {
                 stage('Apply: dev') {
-                    stages {
-                        stage('Apply dev: vpc') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/dev/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply dev: iam') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/dev/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply dev: firewall') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/dev/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply dev: vm') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/dev/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
+                    steps {
+                        sh """
+                            cd \$WORKSPACE/tf-dev
+                            terraform apply -auto-approve -input=false \$WORKSPACE/tf-dev/tfplan-dev
+                        """
                     }
                 }
                 stage('Apply: test') {
-                    stages {
-                        stage('Apply test: vpc') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/test/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply test: iam') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/test/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply test: firewall') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/test/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
-                        stage('Apply test: vm') {
-                            steps {
-                                script {
-                                    def varFlags = ['common','vpc','firewall','vm','iam']
-                                        .findAll { fileExists("environments/test/${it}.tfvars") }
-                                        .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
-                                        .join(" \\\n                                      ")
-                                    sh """
-                                        cd \$WORKSPACE/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
-                                          ${varFlags}
-                                    """
-                                }
-                            }
-                        }
+                    steps {
+                        sh """
+                            cd \$WORKSPACE/tf-test
+                            terraform apply -auto-approve -input=false \$WORKSPACE/tf-test/tfplan-test
+                        """
                     }
                 }
             }
         }
+
+        // ── Prod: approval then apply ─────────────────────────────────────────
 
         stage('Approval: prod') {
             steps {
@@ -247,71 +141,13 @@ pipeline {
             }
         }
 
-        stage('Apply prod: vpc') {
+        stage('Apply: prod') {
             when { expression { env.PROD_APPROVED == 'true' } }
             steps {
-                script {
-                    def varFlags = ['common','vpc','firewall','vm','iam']
-                        .findAll { fileExists("environments/prod/${it}.tfvars") }
-                        .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
-                        .join(" \\\n                          ")
-                    sh """
-                        cd \$WORKSPACE/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
-                          ${varFlags}
-                    """
-                }
-            }
-        }
-
-        stage('Apply prod: iam') {
-            when { expression { env.PROD_APPROVED == 'true' } }
-            steps {
-                script {
-                    def varFlags = ['common','vpc','firewall','vm','iam']
-                        .findAll { fileExists("environments/prod/${it}.tfvars") }
-                        .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
-                        .join(" \\\n                          ")
-                    sh """
-                        cd \$WORKSPACE/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
-                          ${varFlags}
-                    """
-                }
-            }
-        }
-
-        stage('Apply prod: firewall') {
-            when { expression { env.PROD_APPROVED == 'true' } }
-            steps {
-                script {
-                    def varFlags = ['common','vpc','firewall','vm','iam']
-                        .findAll { fileExists("environments/prod/${it}.tfvars") }
-                        .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
-                        .join(" \\\n                          ")
-                    sh """
-                        cd \$WORKSPACE/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
-                          ${varFlags}
-                    """
-                }
-            }
-        }
-
-        stage('Apply prod: vm') {
-            when { expression { env.PROD_APPROVED == 'true' } }
-            steps {
-                script {
-                    def varFlags = ['common','vpc','firewall','vm','iam']
-                        .findAll { fileExists("environments/prod/${it}.tfvars") }
-                        .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
-                        .join(" \\\n                          ")
-                    sh """
-                        cd \$WORKSPACE/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
-                          ${varFlags}
-                    """
-                }
+                sh """
+                    cd \$WORKSPACE/tf-prod
+                    terraform apply -auto-approve -input=false \$WORKSPACE/tf-prod/tfplan-prod
+                """
             }
         }
     }
