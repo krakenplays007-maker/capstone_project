@@ -1,16 +1,19 @@
 variable "environment_name" {
   description = "Environment name (dev, test, or prod)"
   type        = string
+  default     = null
 }
 
 variable "gcp_project_id" {
   description = "GCP project ID where all resources will be provisioned"
   type        = string
+  default     = null
 }
 
 variable "gcp_region" {
   description = "GCP region for all regional resources"
   type        = string
+  default     = null
 }
 
 # VPC
@@ -21,6 +24,7 @@ variable "vpcs" {
     subnetwork_name          = string
     subnetwork_ip_cidr_range = string
   }))
+  default = null
 }
 
 # Firewall
@@ -36,23 +40,25 @@ variable "firewall_ingress_rules" {
     allowed_source_ranges = list(string)
     applicable_tags       = list(string)
   }))
+  default = null
 }
 
 # VM
 variable "vms" {
   description = "List of compute instances to create"
   type = list(object({
-    instance_name               = string
-    instance_machine_type       = string
-    instance_zone               = string
-    boot_disk_image             = string
-    boot_disk_size_gb           = number
-    instance_subnetwork_name    = string
-    enable_external_ip          = bool
-    instance_network_tags       = list(string)
-    instance_metadata           = map(string)
-    vm_service_account_scopes   = list(string)
+    instance_name             = string
+    instance_machine_type     = string
+    instance_zone             = string
+    boot_disk_image           = string
+    boot_disk_size_gb         = number
+    instance_subnetwork_name  = string
+    enable_external_ip        = bool
+    instance_network_tags     = list(string)
+    instance_metadata         = map(string)
+    vm_service_account_scopes = list(string)
   }))
+  default = null
 }
 
 # IAM
@@ -79,11 +85,13 @@ variable "vm_iam_bindings" {
 variable "vm_service_account_id" {
   description = "Account ID for the VM service account (e.g. dev-vm-sa)"
   type        = string
+  default     = null
 }
 
 variable "vm_service_account_display_name" {
   description = "Human-readable display name for the VM service account"
   type        = string
+  default     = null
 }
 
 variable "vm_service_account_roles" {
