@@ -5,11 +5,6 @@ pipeline {
         githubPush()
     }
 
-    environment {
-        TF_VAR_DIR  = ''
-        ENVIRONMENT = ''
-    }
-
     stages {
 
         stage('Checkout') {
@@ -28,22 +23,19 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
-                    def detectedEnv
                     if (changedFiles.contains('environments/prod')) {
-                        detectedEnv = 'prod'
+                        env.ENVIRONMENT = 'prod'
                     } else if (changedFiles.contains('environments/test')) {
-                        detectedEnv = 'test'
+                        env.ENVIRONMENT = 'test'
                     } else if (changedFiles.contains('environments/dev')) {
-                        detectedEnv = 'dev'
+                        env.ENVIRONMENT = 'dev'
                     } else {
-                        detectedEnv = input(
+                        env.ENVIRONMENT = input(
                             message: 'Root-level change detected. Select target environment:',
                             parameters: [choice(name: 'ENVIRONMENT', choices: ['dev', 'test', 'prod'])]
                         )
                     }
 
-                    env.ENVIRONMENT = detectedEnv
-                    env.TF_VAR_DIR  = "environments/${detectedEnv}"
                     echo "Target environment: ${env.ENVIRONMENT}"
                 }
             }
@@ -51,12 +43,15 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                sh """
-                    terraform init \\
-                      -backend-config="bucket=backend_state" \\
-                      -backend-config="prefix=${env.ENVIRONMENT}/terraform.tfstate" \\
-                      -reconfigure
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform init \\
+                          -backend-config="bucket=backend_state" \\
+                          -backend-config="prefix=${env.ENVIRONMENT}/terraform.tfstate" \\
+                          -reconfigure
+                    """
+                }
             }
         }
 
@@ -68,15 +63,18 @@ pipeline {
 
         stage('Terraform Plan') {
             steps {
-                sh """
-                    terraform plan \\
-                      -var-file="${env.TF_VAR_DIR}/common.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vpc.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/firewall.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vm.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/iam.tfvars" \\
-                      -out=tfplan
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform plan \\
+                          -var-file="${tfVarDir}/common.tfvars" \\
+                          -var-file="${tfVarDir}/vpc.tfvars" \\
+                          -var-file="${tfVarDir}/firewall.tfvars" \\
+                          -var-file="${tfVarDir}/vm.tfvars" \\
+                          -var-file="${tfVarDir}/iam.tfvars" \\
+                          -out=tfplan
+                    """
+                }
             }
         }
 
@@ -91,57 +89,69 @@ pipeline {
 
         stage('Apply: vpc') {
             steps {
-                sh """
-                    terraform apply -auto-approve \\
-                      -target=module.vpc \\
-                      -var-file="${env.TF_VAR_DIR}/common.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vpc.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/firewall.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vm.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/iam.tfvars"
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform apply -auto-approve \\
+                          -target=module.vpc \\
+                          -var-file="${tfVarDir}/common.tfvars" \\
+                          -var-file="${tfVarDir}/vpc.tfvars" \\
+                          -var-file="${tfVarDir}/firewall.tfvars" \\
+                          -var-file="${tfVarDir}/vm.tfvars" \\
+                          -var-file="${tfVarDir}/iam.tfvars"
+                    """
+                }
             }
         }
 
         stage('Apply: iam') {
             steps {
-                sh """
-                    terraform apply -auto-approve \\
-                      -target=module.iam \\
-                      -var-file="${env.TF_VAR_DIR}/common.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vpc.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/firewall.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vm.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/iam.tfvars"
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform apply -auto-approve \\
+                          -target=module.iam \\
+                          -var-file="${tfVarDir}/common.tfvars" \\
+                          -var-file="${tfVarDir}/vpc.tfvars" \\
+                          -var-file="${tfVarDir}/firewall.tfvars" \\
+                          -var-file="${tfVarDir}/vm.tfvars" \\
+                          -var-file="${tfVarDir}/iam.tfvars"
+                    """
+                }
             }
         }
 
         stage('Apply: firewall') {
             steps {
-                sh """
-                    terraform apply -auto-approve \\
-                      -target=module.firewall \\
-                      -var-file="${env.TF_VAR_DIR}/common.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vpc.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/firewall.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vm.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/iam.tfvars"
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform apply -auto-approve \\
+                          -target=module.firewall \\
+                          -var-file="${tfVarDir}/common.tfvars" \\
+                          -var-file="${tfVarDir}/vpc.tfvars" \\
+                          -var-file="${tfVarDir}/firewall.tfvars" \\
+                          -var-file="${tfVarDir}/vm.tfvars" \\
+                          -var-file="${tfVarDir}/iam.tfvars"
+                    """
+                }
             }
         }
 
         stage('Apply: vm') {
             steps {
-                sh """
-                    terraform apply -auto-approve \\
-                      -target=module.vm \\
-                      -var-file="${env.TF_VAR_DIR}/common.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vpc.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/firewall.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/vm.tfvars" \\
-                      -var-file="${env.TF_VAR_DIR}/iam.tfvars"
-                """
+                script {
+                    def tfVarDir = "environments/${env.ENVIRONMENT}"
+                    sh """
+                        terraform apply -auto-approve \\
+                          -target=module.vm \\
+                          -var-file="${tfVarDir}/common.tfvars" \\
+                          -var-file="${tfVarDir}/vpc.tfvars" \\
+                          -var-file="${tfVarDir}/firewall.tfvars" \\
+                          -var-file="${tfVarDir}/vm.tfvars" \\
+                          -var-file="${tfVarDir}/iam.tfvars"
+                    """
+                }
             }
         }
     }
