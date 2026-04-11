@@ -22,7 +22,7 @@ pipeline {
                         def missing = ['common','vpc','firewall','vm','iam']
                             .findAll { !fileExists("environments/${e}/${it}.tfvars") }
                         if (missing) {
-                            echo "⚠️  ${e}: missing [${missing.join(', ')}] — will be skipped during plan/apply"
+                            echo "⚠️  ${e}: missing [${missing.join(', ')}] — will be skipped"
                         } else {
                             echo "✅ ${e}: all tfvars present"
                         }
@@ -43,14 +43,16 @@ pipeline {
                                 .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-dev && cp -r . /tmp/tf-dev/
-                                cd /tmp/tf-dev && terraform init -input=false \\
+                                mkdir -p /tmp/tf-dev
+                                cp -r \$WORKSPACE/. /tmp/tf-dev/
+                                cd /tmp/tf-dev
+                                terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=dev/terraform.tfstate" \\
                                   -reconfigure
-                                cd /tmp/tf-dev && terraform plan -input=false \\
+                                terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=tfplan-dev
+                                  -out=/tmp/tf-dev/tfplan-dev
                             """
                         }
                     }
@@ -63,14 +65,16 @@ pipeline {
                                 .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-test && cp -r . /tmp/tf-test/
-                                cd /tmp/tf-test && terraform init -input=false \\
+                                mkdir -p /tmp/tf-test
+                                cp -r \$WORKSPACE/. /tmp/tf-test/
+                                cd /tmp/tf-test
+                                terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=test/terraform.tfstate" \\
                                   -reconfigure
-                                cd /tmp/tf-test && terraform plan -input=false \\
+                                terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=tfplan-test
+                                  -out=/tmp/tf-test/tfplan-test
                             """
                         }
                     }
@@ -83,14 +87,16 @@ pipeline {
                                 .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-prod && cp -r . /tmp/tf-prod/
-                                cd /tmp/tf-prod && terraform init -input=false \\
+                                mkdir -p /tmp/tf-prod
+                                cp -r \$WORKSPACE/. /tmp/tf-prod/
+                                cd /tmp/tf-prod
+                                terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=prod/terraform.tfstate" \\
                                   -reconfigure
-                                cd /tmp/tf-prod && terraform plan -input=false \\
+                                terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=tfplan-prod
+                                  -out=/tmp/tf-prod/tfplan-prod
                             """
                         }
                     }
@@ -113,7 +119,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.vpc \\
+                                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -128,7 +134,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.iam \\
+                                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -143,7 +149,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.firewall \\
+                                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -158,7 +164,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-dev
-                                        terraform apply -auto-approve -input=false -target=module.vm \\
+                                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -177,7 +183,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.vpc \\
+                                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -192,7 +198,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.iam \\
+                                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -207,7 +213,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.firewall \\
+                                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -222,7 +228,7 @@ pipeline {
                                         .join(" \\\n                                      ")
                                     sh """
                                         cd /tmp/tf-test
-                                        terraform apply -auto-approve -input=false -target=module.vm \\
+                                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
                                           ${varFlags}
                                     """
                                 }
@@ -259,7 +265,7 @@ pipeline {
                         .join(" \\\n                          ")
                     sh """
                         cd /tmp/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.vpc \\
+                        terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                           ${varFlags}
                     """
                 }
@@ -276,7 +282,7 @@ pipeline {
                         .join(" \\\n                          ")
                     sh """
                         cd /tmp/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.iam \\
+                        terraform apply -auto-approve -input=false -target=module.iam[0] \\
                           ${varFlags}
                     """
                 }
@@ -293,7 +299,7 @@ pipeline {
                         .join(" \\\n                          ")
                     sh """
                         cd /tmp/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.firewall \\
+                        terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                           ${varFlags}
                     """
                 }
@@ -310,7 +316,7 @@ pipeline {
                         .join(" \\\n                          ")
                     sh """
                         cd /tmp/tf-prod
-                        terraform apply -auto-approve -input=false -target=module.vm \\
+                        terraform apply -auto-approve -input=false -target=module.vm[0] \\
                           ${varFlags}
                     """
                 }

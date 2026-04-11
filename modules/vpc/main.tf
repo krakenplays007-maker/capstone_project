@@ -10,4 +10,8 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = each.value.subnetwork_ip_cidr_range
   region        = var.gcp_region
   network       = google_compute_network.vpc[each.value.network_name].id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
