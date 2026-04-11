@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        TF_VAR_DIR = ''
+        TF_VAR_DIR  = ''
         ENVIRONMENT = ''
     }
 
@@ -28,21 +28,22 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
+                    def detectedEnv
                     if (changedFiles.contains('environments/prod')) {
-                        env.ENVIRONMENT = 'prod'
+                        detectedEnv = 'prod'
                     } else if (changedFiles.contains('environments/test')) {
-                        env.ENVIRONMENT = 'test'
+                        detectedEnv = 'test'
                     } else if (changedFiles.contains('environments/dev')) {
-                        env.ENVIRONMENT = 'dev'
+                        detectedEnv = 'dev'
                     } else {
-                        // root-level changes (main.tf, variables.tf, modules etc.) — ask user
-                        env.ENVIRONMENT = input(
+                        detectedEnv = input(
                             message: 'Root-level change detected. Select target environment:',
                             parameters: [choice(name: 'ENVIRONMENT', choices: ['dev', 'test', 'prod'])]
                         )
                     }
 
-                    env.TF_VAR_DIR = "environments/${env.ENVIRONMENT}"
+                    env.ENVIRONMENT = detectedEnv
+                    env.TF_VAR_DIR  = "environments/${detectedEnv}"
                     echo "Target environment: ${env.ENVIRONMENT}"
                 }
             }
