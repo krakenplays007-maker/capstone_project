@@ -48,11 +48,12 @@ pipeline {
                 stage('Plan: dev') {
                     steps {
                         sh """
-                            terraform init \\
+                            mkdir -p /tmp/tf-dev && cp -r . /tmp/tf-dev/
+                            cd /tmp/tf-dev && terraform init \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=dev/terraform.tfstate" \\
                               -reconfigure
-                            terraform plan \\
+                            cd /tmp/tf-dev && terraform plan \\
                               -var-file="environments/dev/common.tfvars" \\
                               -var-file="environments/dev/vpc.tfvars" \\
                               -var-file="environments/dev/firewall.tfvars" \\
@@ -64,11 +65,12 @@ pipeline {
                 stage('Plan: test') {
                     steps {
                         sh """
-                            terraform init \\
+                            mkdir -p /tmp/tf-test && cp -r . /tmp/tf-test/
+                            cd /tmp/tf-test && terraform init \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=test/terraform.tfstate" \\
                               -reconfigure
-                            terraform plan \\
+                            cd /tmp/tf-test && terraform plan \\
                               -var-file="environments/test/common.tfvars" \\
                               -var-file="environments/test/vpc.tfvars" \\
                               -var-file="environments/test/firewall.tfvars" \\
@@ -80,11 +82,12 @@ pipeline {
                 stage('Plan: prod') {
                     steps {
                         sh """
-                            terraform init \\
+                            mkdir -p /tmp/tf-prod && cp -r . /tmp/tf-prod/
+                            cd /tmp/tf-prod && terraform init \\
                               -backend-config="bucket=backend_state" \\
                               -backend-config="prefix=prod/terraform.tfstate" \\
                               -reconfigure
-                            terraform plan \\
+                            cd /tmp/tf-prod && terraform plan \\
                               -var-file="environments/prod/common.tfvars" \\
                               -var-file="environments/prod/vpc.tfvars" \\
                               -var-file="environments/prod/firewall.tfvars" \\
@@ -288,6 +291,9 @@ pipeline {
     post {
         success { echo "✅ ${env.ENVIRONMENT} pipeline completed successfully" }
         failure { echo "❌ ${env.ENVIRONMENT} pipeline failed" }
-        always  { cleanWs() }
+        always  {
+            sh 'rm -rf /tmp/tf-dev /tmp/tf-test /tmp/tf-prod || true'
+            cleanWs()
+        }
     }
 }
