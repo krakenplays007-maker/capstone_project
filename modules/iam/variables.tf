@@ -12,17 +12,6 @@ variable "project_iam_bindings" {
   default = []
 }
 
-variable "vm_iam_bindings" {
-  description = "List of IAM role-member bindings at the VM instance level"
-  type = list(object({
-    instance_name   = string
-    instance_zone   = string
-    iam_role        = string
-    member_identity = string
-  }))
-  default = []
-}
-
 variable "vm_service_account_id" {
   description = "Account ID for the VM service account"
   type        = string

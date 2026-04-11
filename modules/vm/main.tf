@@ -28,3 +28,13 @@ resource "google_compute_instance" "vm" {
   tags     = each.value.instance_network_tags
   metadata = each.value.instance_metadata
 }
+
+resource "google_compute_instance_iam_member" "vm_iam_binding" {
+  for_each      = { for b in var.vm_iam_bindings : "${b.instance_name}-${b.iam_role}-${b.member_identity}" => b }
+  project       = var.gcp_project_id
+  zone          = each.value.instance_zone
+  instance_name = each.value.instance_name
+  role          = each.value.iam_role
+  member        = each.value.member_identity
+  depends_on    = [google_compute_instance.vm]
+}

@@ -18,3 +18,19 @@ variable "vm_service_account_email" {
   description = "Service account email attached to all VMs"
   type        = string
 }
+
+variable "vm_iam_bindings" {
+  description = "List of IAM role-member bindings at the VM instance level"
+  type = list(object({
+    instance_name   = string
+    instance_zone   = string
+    iam_role        = string
+    member_identity = string
+  }))
+  default = []
+}
+
+variable "gcp_project_id" {
+  description = "GCP project ID for VM-level IAM bindings"
+  type        = string
+}
