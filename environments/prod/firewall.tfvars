@@ -1,6 +1,7 @@
 firewall_ingress_rules = [
   {
     rule_name             = "prod-allow-ssh"
+    target_network_name   = "prod-vpc"
     traffic_direction     = "INGRESS"
     rule_priority         = 1000
     allowed_protocol      = "tcp"
@@ -10,6 +11,7 @@ firewall_ingress_rules = [
   },
   {
     rule_name             = "prod-allow-https"
+    target_network_name   = "prod-vpc"
     traffic_direction     = "INGRESS"
     rule_priority         = 1000
     allowed_protocol      = "tcp"

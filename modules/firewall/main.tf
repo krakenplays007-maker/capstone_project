@@ -1,8 +1,7 @@
 resource "google_compute_firewall" "rule" {
-  for_each = { for r in var.firewall_ingress_rules : r.rule_name => r }
-
+  for_each  = { for r in var.firewall_ingress_rules : r.rule_name => r }
   name      = each.value.rule_name
-  network   = var.target_network_name
+  network   = each.value.target_network_name
   direction = each.value.traffic_direction
   priority  = each.value.rule_priority
 

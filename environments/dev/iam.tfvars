@@ -14,6 +14,8 @@ project_iam_bindings = [
 
 vm_iam_bindings = [
   {
+    instance_name   = "dev-vm-1"
+    instance_zone   = "us-central1-a"
     iam_role        = "roles/compute.instanceAdmin.v1"
     member_identity = "user:dev-admin@example.com"
   }
