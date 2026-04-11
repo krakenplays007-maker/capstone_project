@@ -13,8 +13,6 @@ pipeline {
             }
         }
 
-        // ── Validate which tfvars exist per environment ───────────────────────
-
         stage('Validate tfvars') {
             steps {
                 script {
@@ -31,8 +29,6 @@ pipeline {
             }
         }
 
-        // ── Plan all 3 environments in parallel ──────────────────────────────
-
         stage('Plan: all environments') {
             parallel {
                 stage('Plan: dev') {
@@ -43,16 +39,16 @@ pipeline {
                                 .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-dev
-                                cp -r \$WORKSPACE/. /tmp/tf-dev/
-                                cd /tmp/tf-dev
+                                rm -rf \$WORKSPACE/tf-dev && mkdir -p \$WORKSPACE/tf-dev
+                                cp -r \$WORKSPACE/. \$WORKSPACE/tf-dev/ 2>/dev/null || true
+                                cd \$WORKSPACE/tf-dev
                                 terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=dev/terraform.tfstate" \\
                                   -reconfigure
                                 terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=/tmp/tf-dev/tfplan-dev
+                                  -out=\$WORKSPACE/tf-dev/tfplan-dev
                             """
                         }
                     }
@@ -65,16 +61,16 @@ pipeline {
                                 .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-test
-                                cp -r \$WORKSPACE/. /tmp/tf-test/
-                                cd /tmp/tf-test
+                                rm -rf \$WORKSPACE/tf-test && mkdir -p \$WORKSPACE/tf-test
+                                cp -r \$WORKSPACE/. \$WORKSPACE/tf-test/ 2>/dev/null || true
+                                cd \$WORKSPACE/tf-test
                                 terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=test/terraform.tfstate" \\
                                   -reconfigure
                                 terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=/tmp/tf-test/tfplan-test
+                                  -out=\$WORKSPACE/tf-test/tfplan-test
                             """
                         }
                     }
@@ -87,24 +83,22 @@ pipeline {
                                 .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                                 .join(" \\\n                              ")
                             sh """
-                                mkdir -p /tmp/tf-prod
-                                cp -r \$WORKSPACE/. /tmp/tf-prod/
-                                cd /tmp/tf-prod
+                                rm -rf \$WORKSPACE/tf-prod && mkdir -p \$WORKSPACE/tf-prod
+                                cp -r \$WORKSPACE/. \$WORKSPACE/tf-prod/ 2>/dev/null || true
+                                cd \$WORKSPACE/tf-prod
                                 terraform init -input=false \\
                                   -backend-config="bucket=backend_state" \\
                                   -backend-config="prefix=prod/terraform.tfstate" \\
                                   -reconfigure
                                 terraform plan -input=false \\
                                   ${varFlags} \\
-                                  -out=/tmp/tf-prod/tfplan-prod
+                                  -out=\$WORKSPACE/tf-prod/tfplan-prod
                             """
                         }
                     }
                 }
             }
         }
-
-        // ── Apply dev + test in parallel (auto) ──────────────────────────────
 
         stage('Apply: dev + test') {
             parallel {
@@ -118,7 +112,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-dev
+                                        cd \$WORKSPACE/tf-dev
                                         terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                                           ${varFlags}
                                     """
@@ -133,7 +127,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-dev
+                                        cd \$WORKSPACE/tf-dev
                                         terraform apply -auto-approve -input=false -target=module.iam[0] \\
                                           ${varFlags}
                                     """
@@ -148,7 +142,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-dev
+                                        cd \$WORKSPACE/tf-dev
                                         terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                                           ${varFlags}
                                     """
@@ -163,7 +157,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/dev/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-dev
+                                        cd \$WORKSPACE/tf-dev
                                         terraform apply -auto-approve -input=false -target=module.vm[0] \\
                                           ${varFlags}
                                     """
@@ -182,7 +176,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-test
+                                        cd \$WORKSPACE/tf-test
                                         terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                                           ${varFlags}
                                     """
@@ -197,7 +191,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-test
+                                        cd \$WORKSPACE/tf-test
                                         terraform apply -auto-approve -input=false -target=module.iam[0] \\
                                           ${varFlags}
                                     """
@@ -212,7 +206,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-test
+                                        cd \$WORKSPACE/tf-test
                                         terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                                           ${varFlags}
                                     """
@@ -227,7 +221,7 @@ pipeline {
                                         .collect { "-var-file=\"environments/test/${it}.tfvars\"" }
                                         .join(" \\\n                                      ")
                                     sh """
-                                        cd /tmp/tf-test
+                                        cd \$WORKSPACE/tf-test
                                         terraform apply -auto-approve -input=false -target=module.vm[0] \\
                                           ${varFlags}
                                     """
@@ -238,8 +232,6 @@ pipeline {
                 }
             }
         }
-
-        // ── Prod: approval then apply ─────────────────────────────────────────
 
         stage('Approval: prod') {
             steps {
@@ -264,7 +256,7 @@ pipeline {
                         .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                         .join(" \\\n                          ")
                     sh """
-                        cd /tmp/tf-prod
+                        cd \$WORKSPACE/tf-prod
                         terraform apply -auto-approve -input=false -target=module.vpc[0] \\
                           ${varFlags}
                     """
@@ -281,7 +273,7 @@ pipeline {
                         .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                         .join(" \\\n                          ")
                     sh """
-                        cd /tmp/tf-prod
+                        cd \$WORKSPACE/tf-prod
                         terraform apply -auto-approve -input=false -target=module.iam[0] \\
                           ${varFlags}
                     """
@@ -298,7 +290,7 @@ pipeline {
                         .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                         .join(" \\\n                          ")
                     sh """
-                        cd /tmp/tf-prod
+                        cd \$WORKSPACE/tf-prod
                         terraform apply -auto-approve -input=false -target=module.firewall[0] \\
                           ${varFlags}
                     """
@@ -315,7 +307,7 @@ pipeline {
                         .collect { "-var-file=\"environments/prod/${it}.tfvars\"" }
                         .join(" \\\n                          ")
                     sh """
-                        cd /tmp/tf-prod
+                        cd \$WORKSPACE/tf-prod
                         terraform apply -auto-approve -input=false -target=module.vm[0] \\
                           ${varFlags}
                     """
@@ -328,7 +320,7 @@ pipeline {
         success { echo "✅ Pipeline completed successfully" }
         failure { echo "❌ Pipeline failed" }
         always  {
-            sh 'rm -rf /tmp/tf-dev /tmp/tf-test /tmp/tf-prod || true'
+            sh 'rm -rf $WORKSPACE/tf-dev $WORKSPACE/tf-test $WORKSPACE/tf-prod || true'
             cleanWs()
         }
     }
