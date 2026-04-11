@@ -6,18 +6,6 @@ vm_service_account_roles = [
   "roles/storage.objectViewer"
 ]
 
-project_iam_bindings = [
-  {
-    iam_role        = "roles/viewer"
-    member_identity = "user:test-admin@example.com"
-  }
-]
+project_iam_bindings = []
 
-vm_iam_bindings = [
-  {
-    instance_name   = "test-vm-1"
-    instance_zone   = "us-central1-b"
-    iam_role        = "roles/compute.instanceAdmin.v1"
-    member_identity = "user:test-admin@example.com"
-  }
-]
+vm_iam_bindings = []

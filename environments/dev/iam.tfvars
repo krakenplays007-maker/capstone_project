@@ -5,18 +5,6 @@ vm_service_account_roles = [
   "roles/monitoring.metricWriter"
 ]
 
-project_iam_bindings = [
-  {
-    iam_role        = "roles/editor"
-    member_identity = "user:dev-admin@example.com"
-  }
-]
+project_iam_bindings = []
 
-vm_iam_bindings = [
-  {
-    instance_name   = "dev-vm-1"
-    instance_zone   = "us-central1-a"
-    iam_role        = "roles/compute.instanceAdmin.v1"
-    member_identity = "user:dev-admin@example.com"
-  }
-]
+vm_iam_bindings = []
